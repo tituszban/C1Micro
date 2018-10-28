@@ -1,0 +1,4 @@
+LANES = 10
+HEALTH = 100
+D_BITS = 5
+D_CORES = 4
