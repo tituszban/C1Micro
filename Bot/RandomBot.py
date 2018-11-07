@@ -4,6 +4,7 @@ import random
 
 
 class RandomBot(Bot):
+
     def __init__(self):
         self.start_health = 0
         self.lanes = 0
