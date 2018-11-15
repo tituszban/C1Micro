@@ -20,8 +20,7 @@ class GameCore:
         self.bot2.on_start(config)
         while self.p1.health > 0 and self.p2.health > 0:
             self.new_turn()
-        self.bot1.on_game_over(self.p1.health > 0)
-        self.bot2.on_game_over(self.p2.health > 0)
+        self.game_over()
         if not (self.p1.health <= 0 and self.p2.health <= 0):
             print("Game Over: The winner is Bot {}".format(1 if self.p1.health > 0 else 2))
         else:
@@ -50,6 +49,8 @@ class GameCore:
         self.gen_res(self.p1, self.p2)
         self.gen_res(self.p2, self.p1)
 
+        # print(self.p1.health, self.p2.health)
+
         self.t += 1
 
     def turn_valid(self, p, attack, defense):
@@ -76,3 +77,9 @@ class GameCore:
 
         one.bits += D_BITS + ((HEALTH - other.health) // HEALTH_STEP) * BIT_HEALTH_MULTIPLIER
         one.cores += D_CORES + (HEALTH - one.health) // HEALTH_STEP * CORE_HEALTH_MULTIPLIER
+
+    def game_over(self):
+        p1_state = GameState(self.p1, self.p2, self.t)
+        p2_state = GameState(self.p2, self.p1, self.t)
+        self.bot1.on_game_over(p1_state, self.p1.health > 0)
+        self.bot2.on_game_over(p2_state, self.p2.health > 0)

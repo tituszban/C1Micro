@@ -25,5 +25,5 @@ def gen_model(lanes):
     model = Model(inputs=[input_info, input_gamestate], outputs=[out_action, out_placement])
     model.compile(loss='mse', optimizer=Adam(lr=1e-6), metrics=['accuracy'])
 
-    print(model.summary())
+    # print(model.summary())
     return model

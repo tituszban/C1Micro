@@ -20,8 +20,8 @@ class RandomBot(Bot):
             defense[random.randrange(self.lanes)] += 1
         for i in range(int(np.floor(gs.my_info.bits))):
             attack[random.randrange(self.lanes)] += 1
-        print(attack, defense)
+        # print(attack, defense)
         return attack, defense
 
-    def on_game_over(self, is_winner):
+    def on_game_over(self, gs, is_winner):
         pass

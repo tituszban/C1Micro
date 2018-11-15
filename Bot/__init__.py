@@ -8,5 +8,5 @@ class Bot:
     def on_turn(self, gs):
         pass
 
-    def on_game_over(self, is_winner):
+    def on_game_over(self, gs, is_winner):
         pass
