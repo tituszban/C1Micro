@@ -2,8 +2,8 @@ from Bot import Bot
 from Bot.PaulBot.PaulBrain import gen_model
 import numpy as np
 
-class PaulBot(Bot):
 
+class PaulBot(Bot):
     def __init__(self):
         self.start_health = 0
         self.lanes = 0
@@ -15,9 +15,7 @@ class PaulBot(Bot):
         self.model = gen_model(self.lanes)
 
     def on_turn(self, gs):
-
         pass
 
     def on_game_over(self, is_winner):
-
-        pass # do yey or meh
+        pass  # do yey or meh
