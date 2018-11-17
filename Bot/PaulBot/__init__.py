@@ -8,7 +8,7 @@ from os.path import isfile
 GAMMA = 0.99  # decay rate of past observations
 INITIAL_EPSILON = 0.1  # starting value of epsilon
 FINAL_EPSILON = 0.0001  # final value of epsilon
-MEMORY_SIZE = 50000  # number of previous transitions to remember
+MEMORY_SIZE = 50000000  # number of previous transitions to remember
 NUM_EPOCHS_OBSERVE = 100
 NUM_EPOCHS_TRAIN = 2000
 BATCH_SIZE = 32
@@ -26,11 +26,12 @@ def normalize(vector):
     return vector / np.sum(vector)
 
 class PaulBot(Bot):
-    def __init__(self, start_epoch, loss):
+    def __init__(self, start_epoch, loss, experience, model):
         self.start_health = 0
         self.lanes = 0
-        self.model = None
-        self.experience = collections.deque(maxlen=MEMORY_SIZE)
+        self.model = model
+        self.experience = experience #
+        #print(len(experience))
         self.epoch = start_epoch
         self.epsilon = max(FINAL_EPSILON, INITIAL_EPSILON - (INITIAL_EPSILON - FINAL_EPSILON) / NUM_EPOCHS * self.epoch)
         self.loss = loss
@@ -39,12 +40,20 @@ class PaulBot(Bot):
         self.prev_states = [self.gs_to_state(GameState.get_empty())]
         self.prev_actions = []
 
+    @staticmethod
+    def get_model(lanes):
+        return gen_model(lanes)
+
+    @staticmethod
+    def get_experience():
+        return collections.deque(maxlen=MEMORY_SIZE)
+
     def on_start(self, config):
         self.start_health = config['START_HEALTH']
         self.lanes = config['LANES']
-        self.model = gen_model(self.lanes)
-        if self.epoch > NUM_EPOCHS_OBSERVE and isfile(SAVE_PATH):
-            self.model.load_weights(SAVE_PATH)
+        # self.model = gen_model(self.lanes)
+        # if self.epoch > NUM_EPOCHS_OBSERVE and isfile(SAVE_PATH):
+        #     self.model.load_weights(SAVE_PATH)
 
     def get_next_batch(self):
         batch_indices = np.random.randint(low=0, high=len(self.experience), size=BATCH_SIZE)
@@ -88,7 +97,7 @@ class PaulBot(Bot):
         delta_enemy_health = gs.enemy_info.health - self.prev_gs.enemy_info.health
 
         # TODO: reward
-        reward = 0
+        reward = delta_enemy_health / self.prev_gs.enemy_info.health - delta_my_healt / self.prev_gs.my_info.health #0
 
         assert len(self.prev_actions) + 1 == len(self.prev_states)
 
@@ -108,7 +117,7 @@ class PaulBot(Bot):
         self.prev_actions = []
 
     def get_random_action(self):
-        out_action = np.array([0, 20, 40])
+        out_action = np.array([0, 50, 100])
         out_placement = np.zeros((self.lanes,))
         out_placement[np.random.choice(list(range(self.lanes)))] = 1
         return out_action, out_placement
@@ -182,5 +191,5 @@ class PaulBot(Bot):
 
     def on_game_over(self, gs, is_winner):
         self.store_experience(gs, True)
-        if self.epoch > NUM_EPOCHS_OBSERVE:
-            self.model.save_weights(SAVE_PATH)
+        # if self.epoch > NUM_EPOCHS_OBSERVE:
+        #     self.model.save_weights(SAVE_PATH)

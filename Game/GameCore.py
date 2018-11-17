@@ -22,7 +22,8 @@ class GameCore:
             self.new_turn()
         self.game_over()
         if not (self.p1.health <= 0 and self.p2.health <= 0):
-            print("Game Over: The winner is Bot {}".format(1 if self.p1.health > 0 else 2))
+            print("Game Over: The winner is Bot {}. Life difference: {}".format(
+                (1 if self.p1.health > 0 else 2), abs(self.p1.health - self.p2.health)))
         else:
             print("Game Over: Tie")
 
