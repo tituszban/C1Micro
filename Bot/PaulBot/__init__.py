@@ -22,16 +22,18 @@ DONE = 0
 ATTACK = 1
 DEFENSE = 2
 
+
 def normalize(vector):
     return vector / np.sum(vector)
+
 
 class PaulBot(Bot):
     def __init__(self, start_epoch, loss, experience, model):
         self.start_health = 0
         self.lanes = 0
         self.model = model
-        self.experience = experience #
-        #print(len(experience))
+        self.experience = experience  #
+        # print(len(experience))
         self.epoch = start_epoch
         self.epsilon = max(FINAL_EPSILON, INITIAL_EPSILON - (INITIAL_EPSILON - FINAL_EPSILON) / NUM_EPOCHS * self.epoch)
         self.loss = loss
@@ -97,7 +99,7 @@ class PaulBot(Bot):
         delta_enemy_health = gs.enemy_info.health - self.prev_gs.enemy_info.health
 
         # TODO: reward
-        reward = delta_enemy_health / self.prev_gs.enemy_info.health - delta_my_healt / self.prev_gs.my_info.health #0
+        reward = 0
 
         assert len(self.prev_actions) + 1 == len(self.prev_states)
 
@@ -107,10 +109,9 @@ class PaulBot(Bot):
                 (self.prev_states[i], (action, placement), self.prev_states[i + 1],
                  reward - (INVALID_PENALTY if is_valid else 0), game_over))
 
-
         if self.epoch > NUM_EPOCHS_OBSERVE:
             X, Y = self.get_next_batch()
-            #self.loss += self.model.train_on_batch(X, Y)  # TODO how does this work?
+            # self.loss += self.model.train_on_batch(X, Y)  # TODO how does this work?
             self.model.train_on_batch(X, Y)
 
         self.prev_states = [self.prev_states[-1]]
@@ -147,7 +148,7 @@ class PaulBot(Bot):
                     out_action, out_placement = self.get_random_action()
                 else:
                     out_action, out_placement = self.predict(state)
-                    #print(out_action, out_placement)
+                    # print(out_action, out_placement)
 
             # Update state, attack, defense
             is_valid = False
@@ -183,8 +184,8 @@ class PaulBot(Bot):
                 if not duplicate_found:
                     self.prev_actions.append((action, placement, is_valid))
                     self.prev_states.append(state)
-                # if not is_valid:
-                #     print("Invalid")
+                    # if not is_valid:
+                    #     print("Invalid")
 
         self.prev_gs = gs
         return attack, defense
