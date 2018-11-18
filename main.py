@@ -9,6 +9,7 @@ def main():
     epoch = 0
     loss = 0
     model = PaulBot.get_model(LANES)
+    print(model.summary())
     experience = PaulBot.get_experience()
     while epoch < NUM_EPOCHS:
         print("Game {}".format(epoch))

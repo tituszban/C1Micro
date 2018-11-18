@@ -3,6 +3,7 @@ from Bot.PaulBot.PaulBrain import gen_model
 import numpy as np
 import collections
 from Game.GameState import GameState
+from copy import deepcopy
 from os.path import isfile
 
 GAMMA = 0.99  # decay rate of past observations
@@ -11,12 +12,12 @@ FINAL_EPSILON = 0.0001  # final value of epsilon
 MEMORY_SIZE = 50000000  # number of previous transitions to remember
 NUM_EPOCHS_OBSERVE = 100
 NUM_EPOCHS_TRAIN = 2000
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 NUM_EPOCHS = NUM_EPOCHS_OBSERVE + NUM_EPOCHS_TRAIN
 
 SAVE_PATH = "./Bot/PaulBot/model.h5"
 
-INVALID_PENALTY = -1
+INVALID_PENALTY = 0
 
 DONE = 0
 ATTACK = 1
@@ -53,12 +54,47 @@ class PaulBot(Bot):
     def on_start(self, config):
         self.start_health = config['START_HEALTH']
         self.lanes = config['LANES']
+
+        if self.epoch == NUM_EPOCHS_OBSERVE + 1:
+            X, Y = self.get_entire_data()
+            self.model.fit(X, Y, batch_size=32, epochs=100, verbose=1)
+
+        # if self.epoch > NUM_EPOCHS_OBSERVE:
+        #     print(list(self.experience)[:100])
         # self.model = gen_model(self.lanes)
         # if self.epoch > NUM_EPOCHS_OBSERVE and isfile(SAVE_PATH):
         #     self.model.load_weights(SAVE_PATH)
 
+    def get_entire_data(self):
+        # batch_indices = np.random.randint(low=0, high=len(self.experience), size=BATCH_SIZE)
+        # print(batch_indices)
+        # batch = [self.experience[i] for i in batch_indices]
+        X = [np.zeros((len(self.experience), 7)), np.zeros((len(self.experience), self.lanes, 3))]
+        Y = [np.zeros((len(self.experience), 3)), np.zeros((len(self.experience), self.lanes))]
+        for i in range(len(self.experience)):
+            s_t, a_t, s_tp1, r_t, game_over = self.experience[i]
+            info, gamestate = s_t
+            X[0][i] = info
+            X[1][i] = gamestate.T
+            action, placement = self.predict(s_t)
+            Y[0][i] = action
+            Y[1][i] = placement
+            # Q_pred = self.predict(s_tp1)
+            # Q_sa = (np.max(Q_pred[0]) + np.max(Q_pred[1])) / 2
+
+            if game_over:
+                Y[0][i, a_t[0]] = r_t
+                Y[1][i, a_t[1]] = r_t
+            else:
+                Y[0][i, a_t[0]] = r_t #+ GAMMA * Q_sa
+                Y[1][i, a_t[1]] = r_t #+ GAMMA * Q_sa
+            # print(Y[0][i], Y[1][i], a_t[0], a_t[1], r_t, Q_sa)
+
+        return X, Y
+
     def get_next_batch(self):
         batch_indices = np.random.randint(low=0, high=len(self.experience), size=BATCH_SIZE)
+        # print(batch_indices)
         batch = [self.experience[i] for i in batch_indices]
         X = [np.zeros((BATCH_SIZE, 7)), np.zeros((BATCH_SIZE, self.lanes, 3))]
         Y = [np.zeros((BATCH_SIZE, 3)), np.zeros((BATCH_SIZE, self.lanes))]
@@ -79,6 +115,7 @@ class PaulBot(Bot):
             else:
                 Y[0][i, a_t[0]] = r_t + GAMMA * Q_sa
                 Y[1][i, a_t[1]] = r_t + GAMMA * Q_sa
+            # print(Y[0][i], Y[1][i], a_t[0], a_t[1], r_t, Q_sa)
 
         return X, Y
 
@@ -99,20 +136,22 @@ class PaulBot(Bot):
         delta_enemy_health = gs.enemy_info.health - self.prev_gs.enemy_info.health
 
         # TODO: reward
-        reward = 0
+        reward = (- delta_enemy_health + delta_my_healt) * 10
 
         assert len(self.prev_actions) + 1 == len(self.prev_states)
 
         for i in range(len(self.prev_actions)):
             action, placement, is_valid = self.prev_actions[i]
+            # print((action, placement), is_valid, reward + (INVALID_PENALTY if not is_valid else 0), delta_enemy_health, delta_my_healt)
             self.experience.append(
                 (self.prev_states[i], (action, placement), self.prev_states[i + 1],
-                 reward - (INVALID_PENALTY if is_valid else 0), game_over))
+                 reward + (INVALID_PENALTY if not is_valid else 0), game_over))
 
         if self.epoch > NUM_EPOCHS_OBSERVE:
             X, Y = self.get_next_batch()
             # self.loss += self.model.train_on_batch(X, Y)  # TODO how does this work?
-            self.model.train_on_batch(X, Y)
+            loss, _, _, acc1, acc2 = self.model.train_on_batch(X, Y)
+            # print(loss, (acc1 + acc2) / 2)
 
         self.prev_states = [self.prev_states[-1]]
         self.prev_actions = []
@@ -156,6 +195,7 @@ class PaulBot(Bot):
             placement = np.argmax(out_placement)
             while not is_valid:
                 action = np.random.choice(3, 1, p=normalize(1 + out_action - np.min(out_action)))[0]
+
                 if action == DONE:
                     done = True
                     is_valid = True
@@ -173,21 +213,26 @@ class PaulBot(Bot):
                         defense[placement] += 1
                 lst_valid_found = False
                 duplicate_found = False
-                i = 0
+                i = 1
                 if len(self.prev_actions) > 0 and not is_valid:
+                    # print("Enter invalid check")
                     while not lst_valid_found and not duplicate_found and i <= len(self.prev_actions):
+                        # print(self.prev_actions[-i][2])
                         if self.prev_actions[-i][2]:
                             lst_valid_found = True
                         elif self.prev_actions[-i][0] == action:
                             duplicate_found = True
                         i += 1
+                    # print("Last valid found: {} duplicate found: {}, i: {}".format(lst_valid_found, duplicate_found, i))
                 if not duplicate_found:
                     self.prev_actions.append((action, placement, is_valid))
                     self.prev_states.append(state)
                     # if not is_valid:
                     #     print("Invalid")
+                # if self.epoch > NUM_EPOCHS_OBSERVE:
+                #     print(action, normalize(1 + out_action - np.min(out_action)), is_valid)
 
-        self.prev_gs = gs
+        self.prev_gs = deepcopy(gs)
         return attack, defense
 
     def on_game_over(self, gs, is_winner):
